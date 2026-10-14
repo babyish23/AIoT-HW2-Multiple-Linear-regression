@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DIC2 HW2 多元線性迴歸 · King County</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,560;7..72,700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">NCHU DIC2 HW2 · CRISP-DM · sklearn</p>
+      <h1>多元線性迴歸：King County 房價</h1>
+      <p class="lede">延伸 HW1 的 CRISP-DM 流程。資料是 Kaggle House Sales in King County，18 個原始預測變數。特徵選擇比較 Lasso、Forward SFS、RFE、SelectKBest 與 Permutation Importance，並畫出 95% 信賴區間和預測區間。</p>
+    </header>
+
+    <section class="panel grid-2">
+      <div class="field">
+        <label for="problem">題目</label>
+        <select id="problem"></select>
+      </div>
+      <form id="dataset-form" class="field">
+        <label for="dataset-url">Dataset URL</label>
+        <div class="row">
+          <input id="dataset-url" type="url" placeholder="https://raw.githubusercontent.com/.../kc_house_data.csv" value="https://raw.githubusercontent.com/zoepreece943/kc_house_data.csv/main/kc_house_data.csv">
+          <button class="primary" type="submit">載入</button>
+        </div>
+        <div class="row">
+          <select id="target-col" hidden></select>
+          <button class="ghost" id="analyze-custom" type="button" hidden>用這個目標欄位分析</button>
+          <label class="ghost" style="display:inline-flex;align-items:center;padding:9px 12px;">
+            或選本機 CSV
+            <input id="dataset-file" type="file" accept=".csv,text/csv" hidden>
+          </label>
+        </div>
+        <p id="status"></p>
+      </form>
+    </section>
+
+    <section class="phases" id="phases"></section>
+
+    <section class="panel">
+      <h2 id="problem-title">50 Startups</h2>
+      <p class="note" id="problem-note"></p>
+      <div class="choices" id="algorithms"></div>
+      <div class="k-row">
+        <label for="k-range">特徵數 k = <span id="k-label">2</span></label>
+        <input id="k-range" type="range" min="1" max="5" value="2">
+      </div>
+      <p class="note" id="active-features"></p>
+    </section>
+
+    <section class="panel" id="schemes-panel">
+      <h2>最好的 5 組</h2>
+      <p class="note">五種特徵選擇各自走出 k=1 到全部特徵的路徑，再用訓練集 OLS 重訓、用測試集 MSE 排序。點一組就會套進下面的係數、預測和殘差。</p>
+      <div class="choices" id="schemes"></div>
+    </section>
+
+    <section class="metrics" id="metrics"></section>
+
+    <section class="panel">
+      <h2>預測圖（95% 信賴區間與預測區間）</h2>
+      <p class="note">左圖把測試集依預測價格排序。深色帶是平均反應的 95% 信賴區間，淺色帶是新房子的 95% 預測區間，點是實際成交價。右圖是實際價格對預測價格。</p>
+      <img src="output/kingcounty/prediction_interval.png" alt="測試集預測區間" style="width:100%;border:1px solid #e4d8c4;border-radius:12px;">
+    </section>
+
+    <section class="charts">
+      <div class="chart-card">
+        <h3>RMSE by Number of Features</h3>
+        <canvas id="rmse-chart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>R-squared by Number of Features</h3>
+        <canvas id="r2-chart"></canvas>
+      </div>
+    </section>
+
+    <section class="panel" id="top20-panel">
+      <h2>Top 20 feature selection schemes</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>k</th>
+              <th>Selected Features</th>
+              <th class="num">Test MSE</th>
+              <th class="num">Test RMSE</th>
+              <th class="num">R-squared</th>
+            </tr>
+          </thead>
+          <tbody id="top20-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>特徵路徑</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>k</th>
+              <th>方法</th>
+              <th>Selected Features</th>
+              <th class="num">RMSE</th>
+              <th class="num">R-squared</th>
+            </tr>
+          </thead>
+          <tbody id="path-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>迴歸式</h2>
+      <p class="equation" id="equation"></p>
+      <p class="note">係數、標準誤、t、p 值與 VIF 來自訓練集 OLS。RMSE 與 R² 是測試集。</p>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Predictor</th>
+              <th class="num">Estimate</th>
+              <th class="num">Std. Error</th>
+              <th class="num">t</th>
+              <th class="num">p-value</th>
+              <th>95% CI</th>
+              <th class="num">VIF</th>
+            </tr>
+          </thead>
+          <tbody id="coef-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>即時預測</h2>
+      <div class="predict-grid" id="predictor"></div>
+      <div class="prediction">
+        <span id="prediction-label">預測值</span>
+        <strong id="prediction">—</strong>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>測試集殘差最大的觀察值</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>ID</th>
+              <th class="num">Actual</th>
+              <th class="num">Predicted</th>
+              <th class="num">Residual</th>
+              <th class="num">% Error</th>
+            </tr>
+          </thead>
+          <tbody id="resid-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <p>本地重跑：<code>pip install -r requirements.txt</code>，再執行 <code>python hw2.py</code>。HW1 的 50 Startups 腳本仍留在 <code>solve_50_startups.py</code>。</p>
+      <p>資料：<a href="https://www.kaggle.com/datasets/harlfoxem/housesalesprediction">Kaggle House Sales in King County, USA</a>。分割是 test_size=0.2、random_state=0。</p>
+    </footer>
+  </div>
+  <script src="js/analyze.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
