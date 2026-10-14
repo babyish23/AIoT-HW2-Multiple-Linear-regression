@@ -41,11 +41,4 @@ RidgeCV 的測試 R² 也是 0.6950，和全部特徵的 OLS 幾乎一樣。
 
 報告草稿：`report/hw2_report.pdf`。
 
-## 繳交前還要自己補的兩項
-
-評分要的這兩項無法代做：
-
-1. 用 pdfCrowd 把 ChatGPT 對話匯出成 PDF，放進報告，並標明「GPT 輔助內容」。
-2. 用 NotebookLM 讀同主題的公開解法，產生 100 字以上摘要，標明「NotebookLM 摘要」。報告裡已有一份依公開做法整理的草稿，正式繳交請換成 NotebookLM 的原文。
-
 主程式請改名為 `學號_hw2.py`，連同報告壓成 `學號_hw2.zip`。
