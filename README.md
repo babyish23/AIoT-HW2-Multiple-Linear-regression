@@ -1,4 +1,4 @@
-# DIC2 HW2 多元線性迴歸
+# HW2 多元線性迴歸
 
 這份專案從 HW1（50 Startups）複製後延伸。主程式改為 King County 房價的多元線性迴歸，仍走 CRISP-DM，並保留 HW1 的 `solve_50_startups.py`。
 
