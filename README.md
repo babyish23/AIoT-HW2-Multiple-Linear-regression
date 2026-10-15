@@ -39,6 +39,6 @@ RidgeCV 的測試 R² 也是 0.6950，和全部特徵的 OLS 幾乎一樣。
 
 預測圖在 `output/kingcounty/prediction_interval.png`：深色是 95% 信賴區間，淺色是 95% 預測區間。殘差圖在 `output/kingcounty/residual_diagnostics.png`。殘差右偏，而且房價越高誤差越大。
 
-報告草稿：`report/hw2_report.pdf`。
+報告：`report/hw2_report.pdf`。NotebookLM 摘要已換入正文，截圖在同一份 PDF。ChatGPT 對話以 ChatGPT Exporter 匯出，標成「GPT 輔助內容」，全文在 `report/GPT輔助內容.pdf`，並附在報告後面。
 
 主程式請改名為 `學號_hw2.py`，連同報告壓成 `學號_hw2.zip`。
