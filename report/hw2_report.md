@@ -28,4 +28,4 @@ King County 的公開筆記本多半把 price 取對數，再把 zipcode 做成�
 King County 房價分析顯示，居住面積（sqft_living）與房屋等級（grade）為最關鍵變數。因 sqft_living 為 sqft_above 加地下室坪數，兩者高度相關，來源透過剔除 sqft_above 消除多重共線性；zipcode 因類別過多且無數字順序，不宜作為連續變數，需轉為類別編碼。為修正右偏與異質變異，來源對價格與坪數取對數，並以 Q-Q plot 與殘差圖檢查常態性。線性回歸具備高係數解釋力，但非線性預測力有限。樹模型（Random Forest、Gradient Boosting）預測力更高但缺乏直接解釋力。若作業規定使用線性回歸與特徵選擇，應保留 OLS 的顯著係數、p 值、VIF 及帶有區間的預測圖。在比較段落中，則應承認樹模型在捕捉非線性關係與預測精準度上通常優於線性回歸。
 
 【GPT 輔助內容】
-完整對話已用 ChatGPT Exporter 匯出為 PDF，附在本報告後面，共 23 頁，並另存為 report/GPT輔助內容.pdf。對話先討論符合作業條件的 Kaggle 資料集與 CRISP-DM 報告架構，接著依 King County 的實際設定撰寫正文：18 個特徵的 OLS、Forward SFS 的 14 個特徵、RidgeCV 對照、測試 MSE、RMSE、R²、五大回歸假設，以及信賴區間和預測區間的差別。對話也比較了對數價格、把 zipcode 當類別，以及 Random Forest、Gradient Boosting。這些模型常常預測得更好，但這次作業仍以可解釋的 OLS 作為主要結果。主程式繳交時請改名為學號_hw2.py。
+完整對話已用 ChatGPT Exporter 匯出為 PDF，附在本報告後面，共 23 頁，並另存為 report/GPT輔助內容.pdf。對話先討論符合條件的 Kaggle 資料集與 CRISP-DM 報告架構，接著依 King County 的實際設定撰寫正文：18 個特徵的 OLS、Forward SFS 的 14 個特徵、RidgeCV 對照、測試 MSE、RMSE、R²、五大回歸假設，以及信賴區間和預測區間的差別。對話也比較了對數價格、把 zipcode 當類別，以及 Random Forest、Gradient Boosting。這些模型常常預測得更好，但這次仍以可解釋的 OLS 作為主要結果。。

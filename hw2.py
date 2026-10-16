@@ -210,28 +210,135 @@ def save_plots(y_test, frame, residual, fitted):
     return interval_path, residual_path
 
 
-def write_pdf(text, images):
-    from fpdf import FPDF
+def _subset_cjk_font(text):
+    from fontTools.subset import Options, Subsetter
+    from fontTools.ttLib import TTCollection
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_font("cjk", fname=FONT)
-    pdf.add_page()
-    pdf.set_font("cjk", size=16)
-    pdf.multi_cell(0, 10, "DIC2 HW2 多元線性迴歸報告")
-    pdf.ln(2)
-    pdf.set_font("cjk", size=11)
-    for paragraph in text.split("\n"):
-        pdf.multi_cell(0, 7, paragraph if paragraph else " ")
-        pdf.ln(1)
-    for image in images:
-        pdf.add_page()
-        pdf.set_font("cjk", size=11)
-        pdf.multi_cell(0, 7, image.name)
-        pdf.image(str(image), w=180)
+    collection = TTCollection(r"C:\Windows\Fonts\msjh.ttc")
+    face = collection.fonts[0]
+    options = Options()
+    options.layout_features = ["*"]
+    options.name_IDs = ["*"]
+    options.notdef_outline = True
+    options.recommended_glyphs = True
+    subsetter = Subsetter(options=options)
+    subsetter.populate(text=text)
+    subsetter.subset(face)
+    dest = ROOT / "report" / "_msjh_subset.ttf"
+    dest.parent.mkdir(exist_ok=True)
+    face.save(dest)
+    return dest
+
+
+def write_pdf(text, images):
+    import pymupdf
+
+    title = "5115056011 HW2 多元線性迴歸報告"
+    captions = {
+        "prediction_interval.png": "預測圖：95% 信賴區間與 95% 預測區間",
+        "residual_diagnostics.png": "殘差診斷",
+        "notebooklm_summary.png": "NotebookLM 摘要截圖",
+    }
+    fontfile = str(_subset_cjk_font(title + text + "".join(captions.values())))
+    font = pymupdf.Font(fontfile=fontfile)
     out = ROOT / "report" / "hw2_report.pdf"
     out.parent.mkdir(exist_ok=True)
-    pdf.output(str(out))
+    doc = pymupdf.open()
+    margin_x, margin_y = 50, 56
+    page_w, page_h = 595, 842
+    body_size, leading = 12, 20
+    max_width = page_w - 2 * margin_x
+
+    def new_page():
+        page = doc.new_page(width=page_w, height=page_h)
+        page.insert_font(fontname="msjh", fontfile=fontfile)
+        return page, margin_y
+
+    def wrap(paragraph):
+        if not paragraph:
+            return [""]
+        tokens, buf = [], ""
+        for ch in paragraph:
+            if ord(ch) > 0x2E80:
+                if buf:
+                    tokens.append(buf)
+                    buf = ""
+                tokens.append(ch)
+            else:
+                buf += ch
+        if buf:
+            tokens.append(buf)
+        lines, current = [], ""
+        for token in tokens:
+            trial = current + token
+            if font.text_length(trial, body_size) <= max_width:
+                current = trial
+                continue
+            if current.strip():
+                lines.append(current.rstrip())
+            if font.text_length(token, body_size) <= max_width:
+                current = token.lstrip()
+                continue
+            parts, chunk = [], ""
+            for ch in token:
+                nxt = chunk + ch
+                if font.text_length(nxt, body_size) <= max_width:
+                    chunk = nxt
+                    if ch in ",，、 ":
+                        parts.append(chunk)
+                        chunk = ""
+                else:
+                    if chunk:
+                        parts.append(chunk)
+                    chunk = ch
+            if chunk:
+                parts.append(chunk)
+            current = ""
+            for part in parts:
+                trial = current + part
+                if current and font.text_length(trial, body_size) > max_width:
+                    lines.append(current.rstrip())
+                    current = part.lstrip()
+                else:
+                    current = trial
+        if current.strip():
+            lines.append(current.rstrip())
+        return lines or [""]
+
+    page, y = new_page()
+    page.insert_text((margin_x, y), title, fontname="msjh", fontsize=18)
+    y += 34
+    for paragraph in text.split("\n"):
+        for line in wrap(paragraph):
+            if y > page_h - margin_y:
+                page, y = new_page()
+            page.insert_text((margin_x, y), line or " ", fontname="msjh", fontsize=body_size)
+            y += leading
+        y += 6
+
+    for image in images:
+        page, y = new_page()
+        page.insert_text(
+            (margin_x, y),
+            captions.get(image.name, image.name),
+            fontname="msjh",
+            fontsize=12,
+        )
+        page.insert_image(
+            pymupdf.Rect(margin_x, y + 16, page_w - margin_x, page_h - margin_y),
+            filename=str(image),
+            keep_proportion=True,
+        )
+
+    gpt = ROOT / "report" / "GPT輔助內容.pdf"
+    if gpt.exists():
+        extra = pymupdf.open(gpt)
+        doc.insert_pdf(extra)
+        extra.close()
+
+    doc.save(str(out), garbage=4, deflate=True)
+    doc.close()
+    Path(fontfile).unlink(missing_ok=True)
     return out
 
 
@@ -267,7 +374,7 @@ def main():
     print("預測 King County 房屋成交價 price。")
     print("原始欄位扣掉 id 與 date 後有 18 個預測變數，同時符合作業的 10–20 與補充的 14–39。")
     print("Predict the Flood 的公開免登入 CSV 被做成 price-like 目標等於 0.005 乘上特徵總和，")
-    print("測試 R2 會變成 1，不能拿來做特徵選擇，所以這份作業不用那份檔。")
+    print("測試 R2 會變成 1，不能拿來做特徵選擇，所以不用那份檔。")
 
     raw, X, y, features = load_xy()
     print("\nPHASE 2  Data Understanding")
@@ -446,7 +553,7 @@ King County 的公開筆記本多半把 price 取對數，再把 zipcode 做成�
 King County 房價分析顯示，居住面積（sqft_living）與房屋等級（grade）為最關鍵變數。因 sqft_living 為 sqft_above 加地下室坪數，兩者高度相關，來源透過剔除 sqft_above 消除多重共線性；zipcode 因類別過多且無數字順序，不宜作為連續變數，需轉為類別編碼。為修正右偏與異質變異，來源對價格與坪數取對數，並以 Q-Q plot 與殘差圖檢查常態性。線性回歸具備高係數解釋力，但非線性預測力有限。樹模型（Random Forest、Gradient Boosting）預測力更高但缺乏直接解釋力。若作業規定使用線性回歸與特徵選擇，應保留 OLS 的顯著係數、p 值、VIF 及帶有區間的預測圖。在比較段落中，則應承認樹模型在捕捉非線性關係與預測精準度上通常優於線性回歸。
 
 【GPT 輔助內容】
-完整對話已用 ChatGPT Exporter 匯出為 PDF，附在本報告後面，共 23 頁，並另存為 report/GPT輔助內容.pdf。對話先討論符合作業條件的 Kaggle 資料集與 CRISP-DM 報告架構，接著依 King County 的實際設定撰寫正文：18 個特徵的 OLS、Forward SFS 的 14 個特徵、RidgeCV 對照、測試 MSE、RMSE、R²、五大回歸假設，以及信賴區間和預測區間的差別。對話也比較了對數價格、把 zipcode 當類別，以及 Random Forest、Gradient Boosting。這些模型常常預測得更好，但這次作業仍以可解釋的 OLS 作為主要結果。主程式繳交時請改名為學號_hw2.py。
+完整對話已用 ChatGPT Exporter 匯出為 PDF，附在本報告後面，共 23 頁，並另存為 report/GPT輔助內容.pdf。對話先討論符合條件的 Kaggle 資料集與 CRISP-DM 報告架構，接著依 King County 的實際設定撰寫正文：18 個特徵的 OLS、Forward SFS 的 14 個特徵、RidgeCV 對照、測試 MSE、RMSE、R²、五大回歸假設，以及信賴區間和預測區間的差別。對話也比較了對數價格、把 zipcode 當類別，以及 Random Forest、Gradient Boosting。這些模型常常預測得更好，但這次仍以可解釋的 OLS 作為主要結果。。
 """
     pdf_path = write_pdf(report, [interval_path, residual_path, ROOT / "report" / "notebooklm_summary.png"])
     print(f"Report: {pdf_path}")
