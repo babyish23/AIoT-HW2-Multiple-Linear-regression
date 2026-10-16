@@ -344,7 +344,20 @@ def write_pdf(text, images):
 
 def write_preset(result):
     path = ROOT / "data" / "presets.json"
-    path.write_text(json.dumps([result], ensure_ascii=False), encoding="utf-8")
+    path.write_text(
+        json.dumps([_json_safe(result)], ensure_ascii=False, allow_nan=False),
+        encoding="utf-8",
+    )
+
+
+def _json_safe(value):
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 def schema_from(X):

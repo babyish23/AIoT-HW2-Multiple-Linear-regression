@@ -140,7 +140,7 @@ def ols_inference(X_train: pd.DataFrame, y_train: pd.Series, features: list[str]
             continue
         aux = LinearRegression().fit(X_train[others], X_train[features[idx]])
         r2_aux = float(aux.score(X_train[others], X_train[features[idx]]))
-        vif_values.append(float("inf") if r2_aux >= 1 - 1e-12 else 1 / (1 - r2_aux))
+        vif_values.append(None if r2_aux >= 1 - 1e-12 else 1 / (1 - r2_aux))
 
     coefficients = []
     for name, coef, error, t_stat, p_value, vif in zip(
